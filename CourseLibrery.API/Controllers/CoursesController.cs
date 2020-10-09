@@ -2,7 +2,12 @@
 using CourseLibrary.API.Entities;
 using CourseLibrary.API.Services;
 using CourseLibrery.API.Models;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 
@@ -27,7 +32,7 @@ namespace CourseLibrery.API.Controllers
         [HttpGet()]
         public ActionResult<IEquatable<CourseDto>> GetCoursesForAuthor(Guid authorId)
         {
-            if (! _courseLibraryRepository.AuthorExists(authorId))
+            if (!_courseLibraryRepository.AuthorExists(authorId))
             {
                 return NotFound();
             }
@@ -35,7 +40,7 @@ namespace CourseLibrery.API.Controllers
             return Ok(_mapper.Map<IEnumerable<CourseDto>>(coursesForAuhthorFromRepo));
         }
 
-        [HttpGet("{courseId:guid}",Name = "GetCourseForAuthor")]
+        [HttpGet("{courseId:guid}", Name = "GetCourseForAuthor")]
         public ActionResult<IEquatable<CourseDto>> GetCoursesByAuthor(Guid authorId, Guid courseId)
         {
             if (!_courseLibraryRepository.AuthorExists(authorId))
@@ -68,9 +73,39 @@ namespace CourseLibrery.API.Controllers
         }
 
         [HttpPut("{CourseId}")]
-        public ActionResult UpdateCourseForAuthor(Guid authorId,
+        public IActionResult UpdateCourseForAuthor(Guid authorId,
             Guid courseId,
             CourseForUpdateDto course)
+        {
+            if (!_courseLibraryRepository.AuthorExists(authorId))
+            {
+                return NotFound();
+            }
+            var courseForAuthorFromRepo = _courseLibraryRepository.GetCourse(authorId, courseId);
+            if (courseForAuthorFromRepo == null)
+            {
+                var courseToAdd = _mapper.Map<Course>(course);
+                courseToAdd.Id = courseId;
+                _courseLibraryRepository.AddCourse(authorId, courseToAdd);
+                _courseLibraryRepository.Save();
+
+                var courseToReturn = _mapper.Map<CourseDto>(courseToAdd);
+                return CreatedAtRoute("GetCourseForAuthor",
+                    new { authorId, courseId = courseToReturn.Id },
+                    courseToReturn);
+            }
+
+            _mapper.Map(course, courseForAuthorFromRepo);
+            _courseLibraryRepository.UpdateCourse(courseForAuthorFromRepo);
+            _courseLibraryRepository.Save();
+
+            return NoContent();
+        }
+
+        [HttpPatch("{courseId}")]
+        public ActionResult PartiallyUpdateCourseForAuthor(Guid authorId,
+            Guid courseId,
+            JsonPatchDocument<CourseForUpdateDto> patchDocument)
         {
             if (!_courseLibraryRepository.AuthorExists(authorId))
             {
@@ -82,11 +117,26 @@ namespace CourseLibrery.API.Controllers
                 return NotFound();
             }
 
-            _mapper.Map(course, courseForAuthorFromRepo);
+            var courseToPatch = _mapper.Map<CourseForUpdateDto>(courseForAuthorFromRepo);
+            patchDocument.ApplyTo(courseToPatch,ModelState);
+
+            if (! TryValidateModel(courseToPatch))
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            _mapper.Map(courseToPatch, courseForAuthorFromRepo);
             _courseLibraryRepository.UpdateCourse(courseForAuthorFromRepo);
             _courseLibraryRepository.Save();
 
             return NoContent();
+        }
+
+        public override ActionResult ValidationProblem(
+            [ActionResultObjectValue] ModelStateDictionary modelStateDictionary)
+        {
+            var options = HttpContext.RequestServices.GetRequiredService<IOptions<ApiBehaviorOptions>>();
+            return (ActionResult)options.Value.InvalidModelStateResponseFactory(ControllerContext);
         }
     }
 }
