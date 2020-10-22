@@ -1,5 +1,7 @@
 ﻿using CourseLibrary.API.DbContexts;
-using CourseLibrary.API.Entities; 
+using CourseLibrary.API.Entities;
+using CourseLibrery.API.Helpers;
+using CourseLibrery.API.ResourceParameters;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -122,30 +124,29 @@ namespace CourseLibrary.API.Services
         {
             return _context.Authors.ToList<Author>();
         }
-        public IEnumerable<Author> GetAuthors(string mainCategory, string searchQuery)
+        public PagedList<Author> GetAuthors(AuthorResourceParameters authorResourceParameters)
         {
-            if (string.IsNullOrWhiteSpace(mainCategory)
-                && string.IsNullOrWhiteSpace(searchQuery))
+            if (authorResourceParameters is null)
             {
-                return GetAuthors();
+                throw new ArgumentNullException(nameof(authorResourceParameters));
             }
 
             var collection = _context.Authors as IQueryable<Author>;
-            if (!string.IsNullOrWhiteSpace(mainCategory))
+            if (!string.IsNullOrWhiteSpace(authorResourceParameters.MainCategory))
             {
-                mainCategory = mainCategory.Trim();
-                collection = collection.Where(a => a.MainCategory == mainCategory);
+                authorResourceParameters.MainCategory = authorResourceParameters.MainCategory.Trim();
+                collection = collection.Where(a => a.MainCategory == authorResourceParameters.MainCategory);
             }
 
-            if (!string.IsNullOrWhiteSpace(searchQuery))
+            if (!string.IsNullOrWhiteSpace(authorResourceParameters.SearchQuery))
             {
-                searchQuery = searchQuery.Trim();
-                collection = collection.Where(a => a.MainCategory.Contains(searchQuery)
-                || a.FirstName.Contains(searchQuery)
-                || a.LastName.Contains(searchQuery));
+                authorResourceParameters.SearchQuery = authorResourceParameters.SearchQuery.Trim();
+                collection = collection.Where(a => a.MainCategory.Contains(authorResourceParameters.SearchQuery)
+                || a.FirstName.Contains(authorResourceParameters.SearchQuery)
+                || a.LastName.Contains(authorResourceParameters.SearchQuery));
             }
 
-            return collection.ToList();
+            return PagedList<Author>.Create(collection, authorResourceParameters.PageNumber, authorResourceParameters.PageSize);
            
         }
 

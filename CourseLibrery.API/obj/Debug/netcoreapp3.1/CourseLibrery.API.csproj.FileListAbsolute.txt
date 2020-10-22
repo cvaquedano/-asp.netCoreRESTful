@@ -64,3 +64,4 @@ C:\Users\Carlos\source\repos\C#\CourseLibrery\CourseLibrery.API\bin\Debug\netcor
 C:\Users\Carlos\source\repos\C#\CourseLibrery\CourseLibrery.API\bin\Debug\netcoreapp3.1\Newtonsoft.Json.Bson.dll
 C:\Users\Carlos\source\repos\C#\CourseLibrery\CourseLibrery.API\obj\Debug\netcoreapp3.1\CourseLibrery.API.csproj.CoreCompileInputs.cache
 C:\Users\Carlos\source\repos\C#\CourseLibrery\CourseLibrery.API\obj\Debug\netcoreapp3.1\CourseLibrery.API.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\Carlos\source\repos\C#\CourseLibrery\CourseLibrery.API\bin\Debug\netcoreapp3.1\datadog.json

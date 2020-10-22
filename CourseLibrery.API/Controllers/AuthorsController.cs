@@ -11,6 +11,7 @@ using CourseLibrery.API.Models;
 using CourseLibrery.API.ResourceParameters;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace CourseLibrery.API.Controllers
 {
@@ -29,13 +30,31 @@ namespace CourseLibrery.API.Controllers
                 throw new ArgumentException(nameof(mapper));
         }
 
-        [HttpGet()]
+        [HttpGet(Name = "GetAuthors")]
         [HttpHead]
         public ActionResult<IEnumerable<AuthorDto>> GetAuthors( [FromQuery] AuthorResourceParameters authorResourceParameters)
         {
-            var authorsFromRepo = _courseLibraryRepository.GetAuthors(authorResourceParameters.MainCategory, authorResourceParameters.SearchQuery);
+            var authorsFromRepo = _courseLibraryRepository.GetAuthors(authorResourceParameters);
 
-           
+            var previousPageLink = authorsFromRepo.HasPrevious ?
+                CreateAuthorsResourceUri(authorResourceParameters, ResourceUriType.PreviousPage) : null;
+
+            var nextPageLink = authorsFromRepo.HasNext ?
+                CreateAuthorsResourceUri(authorResourceParameters, ResourceUriType.NextPage) : null;
+
+            var paginationMetadata = new
+            {
+                totalCount = authorsFromRepo.TotalCount,
+                pageSize = authorsFromRepo.PageSize,
+                currentPage = authorsFromRepo.CurrentPage,
+                totalPages = authorsFromRepo.TotalPages,
+                previousPageLink,
+                nextPageLink
+            };
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(paginationMetadata));
+
+
             return Ok(_mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo));
         }
 
@@ -88,6 +107,44 @@ namespace CourseLibrery.API.Controllers
 
             return NoContent();
 
+        }
+
+        private string CreateAuthorsResourceUri(AuthorResourceParameters authorResourceParameters,
+            ResourceUriType type)
+        {
+            switch (type)
+            {
+                case ResourceUriType.PreviousPage:
+                    return Url.Link("GetAuthors",
+                        new
+                        {
+                            pageNumber = authorResourceParameters.PageNumber - 1,
+                            pageSize = authorResourceParameters.PageSize,
+                            mainCategory = authorResourceParameters.MainCategory,
+                            searchQuery = authorResourceParameters.SearchQuery
+
+                        });
+                case ResourceUriType.NextPage:
+                    return Url.Link("GetAuthors",
+                        new
+                        {
+                            pageNumber = authorResourceParameters.PageNumber + 1,
+                            pageSize = authorResourceParameters.PageSize,
+                            mainCategory = authorResourceParameters.MainCategory,
+                            searchQuery = authorResourceParameters.SearchQuery
+
+                        });
+                default:
+                    return Url.Link("GetAuthors",
+                       new
+                       {
+                           pageNumber = authorResourceParameters.PageNumber,
+                           pageSize = authorResourceParameters.PageSize,
+                           mainCategory = authorResourceParameters.MainCategory,
+                           searchQuery = authorResourceParameters.SearchQuery
+
+                       });
+            }
         }
     }
 }
