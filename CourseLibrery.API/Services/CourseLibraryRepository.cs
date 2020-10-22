@@ -1,7 +1,9 @@
 ﻿using CourseLibrary.API.DbContexts;
 using CourseLibrary.API.Entities;
 using CourseLibrery.API.Helpers;
+using CourseLibrery.API.Models;
 using CourseLibrery.API.ResourceParameters;
+using CourseLibrery.API.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,9 +15,13 @@ namespace CourseLibrary.API.Services
     {
         private readonly CourseLibraryContext _context;
 
-        public CourseLibraryRepository(CourseLibraryContext context )
+        public IPropertyMappingService _propertyMappingService { get; }
+
+        public CourseLibraryRepository(CourseLibraryContext context,
+            IPropertyMappingService propertyMappingService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
+            _propertyMappingService = propertyMappingService ?? throw new ArgumentNullException(nameof(propertyMappingService));
         }
 
         public void AddCourse(Guid authorId, Course course)
@@ -146,6 +152,12 @@ namespace CourseLibrary.API.Services
                 || a.LastName.Contains(authorResourceParameters.SearchQuery));
             }
 
+            if (!String.IsNullOrWhiteSpace(authorResourceParameters.OrderBy))
+            {
+                var authorPropertyMappingDiccionary = _propertyMappingService.GetPropertyMapping<AuthorDto, Author>();
+
+                collection = collection.ApplySort(authorResourceParameters.OrderBy, authorPropertyMappingDiccionary);
+            }
             return PagedList<Author>.Create(collection, authorResourceParameters.PageNumber, authorResourceParameters.PageSize);
            
         }
